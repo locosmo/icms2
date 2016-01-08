@@ -4,7 +4,7 @@ class formWidgetContentSliderOptions extends cmsForm {
 
     public function init($options=false) {
 
-		$cats_list     = array();
+		$cats_list     = array('0' => '');
         $datasets_list = array('0' => '');
         $fields_list   = array('' => '');
 
@@ -26,7 +26,7 @@ class formWidgetContentSliderOptions extends cmsForm {
 			}
 
 			$datasets = $content_model->getContentDatasets($options['ctype_id']);
-			if ($datasets){ $datasets_list = array('0'=>'') + array_collection_to_list($datasets, 'id', 'title'); }
+			if ($datasets){ $datasets_list = array(0=>'') + array_collection_to_list($datasets, 'id', 'title'); }
 
 			$fields = $content_model->getContentFields($ctype['name']);
 			if ($fields){ $fields_list = array(''=>'') + array_collection_to_list($fields, 'name', 'title'); }
@@ -111,6 +111,11 @@ class formWidgetContentSliderOptions extends cmsForm {
 							'url' => href_to('content', 'widget_fields_ajax')
 						),
 						'items' => $fields_list
+                    )),
+
+                    new fieldNumber('options:teaser_len', array(
+                        'title' => LANG_PARSER_HTML_TEASER_LEN,
+                        'hint' => LANG_PARSER_HTML_TEASER_LEN_HINT,
                     )),
 
                     new fieldNumber('options:delay', array(

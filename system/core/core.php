@@ -19,6 +19,7 @@ class cmsCore {
     public $db;
 
     private static $includedFiles = array();
+    private static $start_time;
 
     public static function getInstance() {
         if (self::$instance === null) {
@@ -31,6 +32,14 @@ class cmsCore {
 
         $this->request = new cmsRequest($_REQUEST);
 
+    }
+
+    public static function startTimer() {
+        self::$start_time = microtime(true);
+    }
+
+    public static function getTime() {
+        return microtime(true) - self::$start_time;
     }
 
 //============================================================================//
@@ -150,9 +159,7 @@ class cmsCore {
 
         if ($class && class_exists($class, false)){ return true; }
 
-        $config = cmsConfig::getInstance();
-
-        $lib_file = $config->root_path.'system/libs/'.$library.'.php';
+        $lib_file = cmsConfig::get('root_path').'system/libs/'.$library.'.php';
 
         if (!file_exists($lib_file)){ self::error(ERR_LIBRARY_NOT_FOUND . ': '. $library); }
 
@@ -613,19 +620,24 @@ class cmsCore {
         if (!$this->uri_controller){ $this->uri_controller = $config->ct_autoload;	}
         if (!$this->uri_action) { $this->uri_action = 'index'; }
 
+        // проверяем ремаппинг контроллера
+        $remap_to = self::getControllerNameByAlias($this->uri_controller);
+        if ($remap_to) { $this->uri_controller = $remap_to; }
+
         if (!self::isControllerExists($this->uri_controller)) {
             $this->uri_action     = $this->uri_controller;
             $this->uri_controller = $config->ct_default;
         }
 
-        // проверяем ремаппинг контроллера
-        $remap_to = self::getControllerNameByAlias($this->uri_controller);
-        if ($remap_to) { $this->uri_controller = $remap_to; }
-
         $this->controller = $this->uri_controller;
 
         // загружаем контроллер
         $controller = self::getController($this->uri_controller, $this->request);
+
+        // контроллер включен?
+        if(!$controller->isEnabled()){
+            self::error404();
+        }
 
         // сохраняем в контроллере название текущего экшена
         $controller->current_action = $this->uri_action;
@@ -642,6 +654,9 @@ class cmsCore {
      * Запускает все виджеты, привязанные к текущей странице
      */
     public function runWidgets(){
+
+        // в админке нам виджеты не нужны
+        if ($this->uri_controller == 'admin') { return; }
 
         $widgets_model = cmsCore::getModel('widgets');
         $pages = $widgets_model->getPages();
@@ -671,15 +686,16 @@ class cmsCore {
         if ($is_user_hide) { return false; }
         if (!$is_user_view) { return false; }
 
-        $path = 'system/' . cmsCore::getWidgetPath( $widget['name'], $widget['controller'] );
-        $file = $path . '/widget.php';
-
-        cmsCore::includeFile($file);
-        cmsCore::loadWidgetLanguage($widget['name'], $widget['controller']);
+        $file = 'system/'.cmsCore::getWidgetPath($widget['name'], $widget['controller']).'/widget.php';
 
         $class = 'widget' .
                     ($widget['controller'] ? string_to_camel('_', $widget['controller']) : '') .
                     string_to_camel('_', $widget['name']);
+
+        if (!class_exists($class, false)) {
+            cmsCore::includeFile($file);
+            cmsCore::loadWidgetLanguage($widget['name'], $widget['controller']);
+        }
 
         $widget_object = new $class($widget);
 
@@ -764,13 +780,18 @@ class cmsCore {
      */
     public static function error($message, $details=''){
 
-        $config = cmsConfig::getInstance();
+        if(ob_get_length()) { ob_end_clean(); }
 
-        if ($config->debug){
+        header('HTTP/1.0 503 Service Unavailable');
+        header('Status: 503 Service Unavailable');
+
+        if (cmsConfig::get('debug')){
             cmsTemplate::getInstance()->renderAsset('errors/error', array(
                 'message'=>$message,
                 'details'=>$details
             ));
+        } else {
+            echo '<h1>503 Service Unavailable</h1>';
         }
 
         die();
@@ -784,11 +805,11 @@ class cmsCore {
 
 		cmsEventsManager::hook('error_404', self::getInstance()->uri);
 
+        if(ob_get_length()) { ob_end_clean(); }
+
         header("HTTP/1.0 404 Not Found");
         header("HTTP/1.1 404 Not Found");
         header("Status: 404 Not Found");
-
-        if(ob_get_length()) { ob_end_clean(); }
 
         cmsTemplate::getInstance()->renderAsset('errors/notfound');
         die();
@@ -805,21 +826,6 @@ class cmsCore {
         cmsTemplate::getInstance()->renderAsset('errors/offline', array(
             'reason' => cmsConfig::get('off_reason')
         ));
-        die();
-
-    }
-
-    /**
-     * Показывает сообщение об ошибке 403 и завершает работу
-     */
-    public static function errorForbidden(){
-
-        $config = cmsConfig::getInstance();
-
-        header("HTTP/1.0 403 Forbidden");
-        header("Status: 403 Forbidden");
-
-        include	($config->root_path . 'templates/' . $config->template .'/system/forbidden.tpl.php');
         die();
 
     }
@@ -887,7 +893,7 @@ class cmsCore {
     }
 
     /**
-     * Возвращает список файл из указанной директории по нужной маске
+     * Возвращает список файлов из указанной директории по нужной маске
      * @param string $root_dir Директория
      * @param string $pattern Маска файлов
      * @param bool $is_strip_ext Отрезать расширения?

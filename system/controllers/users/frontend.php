@@ -11,14 +11,13 @@ class users extends cmsFrontend {
 
         if (!is_numeric($action_name)){ return $action_name; }
 
+        $core = cmsCore::getInstance();
+        $user = cmsUser::getInstance();
+
         $user_id = $action_name;
 
         $profile = $this->model->getUser($user_id);
-
         if (!$profile) { cmsCore::error404(); }
-
-        $core = cmsCore::getInstance();
-        $user = cmsUser::getInstance();
 
         if (!$user->is_logged && $this->options['is_auth_only']){
             cmsUser::goLogin();
@@ -76,13 +75,15 @@ class users extends cmsFrontend {
 
         $this->tabs_controllers = array();
 
-		if ($this->tabs){ 
+		if ($this->tabs){
 			foreach($this->tabs as $tab){
 
 				$default_tab_info = array(
 					'title' => $tab['title'],
 					'url' => href_to($this->name, $profile['id'], $tab['name'])
 				);
+
+                if(!$this->isControllerEnabled($tab['controller'])){ continue; }
 
 				if (empty($this->tabs_controllers[$tab['controller']])){
 					$controller = cmsCore::getController($tab['controller'], $this->request);
@@ -226,9 +227,9 @@ class users extends cmsFrontend {
             $datasets['online'] = array(
                 'name' => 'online',
                 'title' => LANG_USERS_DS_ONLINE,
-                'order' => array('is_online', 'desc'),
+                'order' => array('date_log', 'desc'),
                 'filter' => function($model, $dset){
-                    return $model->filterEqual('is_online', 1);
+                    return $model->joinInner('sessions_online', 'online', 'i.id = online.user_id');
                 }
             );
         }
@@ -272,7 +273,7 @@ class users extends cmsFrontend {
     }
 
     public function logoutLockedUser($user){
-	
+
         $now = time();
         $lock_until = !empty($user['lock_until']) ? strtotime($user['lock_until']) : false;
 
@@ -304,6 +305,3 @@ class users extends cmsFrontend {
     }
 
 }
-
-
-

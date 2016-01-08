@@ -126,7 +126,8 @@
     define('LANG_PARSER_FILE_MAX_SIZE_PHP',  'Not higher than %d Mb (allowed in PHP settings)');
     define('LANG_PARSER_FILE_SHOW_SIZE',     'Show file size');
     define('LANG_PARSER_CURRENT_TIME',       'Current time');
-
+    define('LANG_PARSER_IN_FULLTEXT_SEARCH', 'Add the field into full-text search');
+    define('LANG_PARSER_IN_FULLTEXT_SEARCH_HINT', 'Notice: changing this option will force index to rebuild. That may take long time for large tables.');
     //USERS
     define('LANG_USER',                      'Member');
     define('LANG_USERS',                     'Members');
@@ -211,8 +212,10 @@
     define('ERR_CLASS_NOT_FOUND', 		 	 'Class not found');
     define('ERR_MODULE_NOT_FOUND', 		 	 'Module not found');
     define('ERR_DATABASE_QUERY', 		 	 '<b>Query error</b>: <p>%s</p>');
+    define('ERR_DATABASE_CONNECT', 		 	 'Database connection error');
     define('ERR_PAGE_NOT_FOUND', 		 	 'Page not found');
     define('ERR_SITE_OFFLINE',               'Site is offline');
+    define('ERR_SITE_OFFLINE_FULL',          'Site is offline. <a href="%s">Enable</a>');
 
     //UPLOAD ERRORS
     define('LANG_UPLOAD_ERR_OK', 'File uploaded successfully');
@@ -237,7 +240,8 @@
     define('ERR_VALIDATE_EMAIL',             'Invalid e-mail format');
     define('ERR_VALIDATE_REGEXP',            'Invalid format');
     define('ERR_VALIDATE_ALPHANUMERIC',      'Only letters and digits');
-    define('ERR_VALIDATE_SYSNAME',           'Only letters, digits and underscores');
+    define('ERR_VALIDATE_SYSNAME',           'Only letters (lower case), digits and underscores');
+    define('ERR_VALIDATE_SLUG',              'Only letters (lower case), digits, hyphen and forward slash');
     define('ERR_VALIDATE_DIGITS',            'Only digits');
     define('ERR_VALIDATE_NUMBER',            'Enter a number');
     define('ERR_VALIDATE_UNIQUE',            'Value is already used');
@@ -388,6 +392,7 @@
     define('LANG_PRIVACY',                   'Privacy');
     define('LANG_PRIVACY_PUBLIC',            'For everyone');
     define('LANG_PRIVACY_PRIVATE',           'Only for friends');
+    define('LANG_PRIVACY_PRIVATE_HINT',      'This is a private item. Only author friends view it.');
     define('LANG_ON_FRONT',				 	 'On the home page');
     define('LANG_SHOWED',					 'Displaying');
     define('LANG_ORDER',					 'Order');
@@ -434,6 +439,7 @@
     define('LANG_EVENTS_THIS_WEEK',          'Events this week');
     define('LANG_CALENDAR',                  'Calendar');
     define('LANG_TIME_ZONE',                 'Time zone');
+    define('LANG_YEAR',                      'Year');
     define('LANG_YEARS',                     'Years');
     define('LANG_YEAR1',                     'year');
     define('LANG_YEAR2',                     'years');
@@ -466,4 +472,4 @@
 
     define('LANG_POWERED_BY_INSTANTCMS',     'Powered by <a href="http://instantcms.ru/">InstantCMS</a>');
     define('LANG_ICONS_BY_FATCOW',           'Icons by <a href="http://www.fatcow.com/free-icons">FatCow</a>');
-
+    define('LANG_DEBUG_QUERY_TIME',          'Query time');

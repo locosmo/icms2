@@ -39,8 +39,9 @@ class modelUsers extends cmsModel{
 
         return $this->get('{users}', function($user){
 
-            $user['groups'] = cmsModel::yamlToArray($user['groups']);
-            $user['theme'] = cmsModel::yamlToArray($user['theme']);
+            $user['groups']    = cmsModel::yamlToArray($user['groups']);
+            $user['theme']     = cmsModel::yamlToArray($user['theme']);
+            $user['is_online'] = cmsUser::userIsOnline($user['id']);
 
             $user['city'] = $user['city_id'] ? array(
                 'id' => $user['city_id'],
@@ -91,6 +92,8 @@ class modelUsers extends cmsModel{
             'id' => $user['city_id'],
             'name' => $user['city_name'],
         ) : false;
+
+        $user['is_online'] = cmsUser::userIsOnline($user['id']);
 
         return $user;
 
@@ -144,10 +147,9 @@ class modelUsers extends cmsModel{
         $date_reg = date('Y-m-d H:i:s');
         $date_log = $date_reg;
 
-        $password = $user['password1'];
-        $password_salt = md5(implode(':', array($password, session_id(), time(), rand(0, 10000))));
+        $password_salt = md5(implode(':', array($user['password1'], session_id(), microtime(), uniqid())));
         $password_salt = substr($password_salt, rand(1,8), 16);
-        $password_hash = md5(md5($password) . $password_salt);
+        $password_hash = md5(md5($user['password1']) . $password_salt);
 
         $groups = !empty($user['groups']) ? $user['groups'] : array(DEF_GROUP_ID);
 
@@ -202,20 +204,19 @@ class modelUsers extends cmsModel{
 
         if (!empty($user['password1']) && !$errors){
 
-            if (strlen($user['password1']) < 6) {
-                $errors['password1'] = ERR_VALIDATE_MIN_LENGTH;
+            if (mb_strlen($user['password1']) < 6) {
+                $errors['password1'] = sprintf(ERR_VALIDATE_MIN_LENGTH, 6);
             }
 
             if ($user['password1'] != $user['password2']){
                 $errors['password2'] = LANG_REG_PASS_NOT_EQUAL;
             }
 
-            $password = $user['password1'];
-            $password_salt = md5(implode(':', array($password, session_id(), time(), rand(0, 10000))));
+            $password_salt = md5(implode(':', array($user['password1'], session_id(), microtime(), uniqid())));
             $password_salt = substr($password_salt, rand(1,8), 16);
-            $password_hash = md5(md5($password) . $password_salt);
+            $password_hash = md5(md5($user['password1']) . $password_salt);
 
-            $user['password'] = $password_hash;
+            $user['password']      = $password_hash;
             $user['password_salt'] = $password_salt;
 
         }
@@ -269,15 +270,18 @@ class modelUsers extends cmsModel{
 
     public function deleteUser($id){
 
-        $this->delete('{users}_friends', $id, "user_id");
-        $this->delete('{users}_friends', $id, "friend_id");
-        $this->delete('{users}_groups_members', $id, "user_id");
-        $this->delete('{users}_karma', $id, "user_id");
-        $this->delete('{users}_statuses', $id, "user_id");
+        $this->delete('{users}_friends', $id, 'user_id');
+        $this->delete('{users}_friends', $id, 'friend_id');
+        $this->delete('{users}_groups_members', $id, 'user_id');
+        $this->delete('{users}_karma', $id, 'user_id');
+        $this->delete('{users}_statuses', $id, 'user_id');
+        $this->delete('{users}_personal_settings', $id, 'user_id');
         $this->delete('{users}', $id);
 
-        cmsCache::getInstance()->clean("users.list");
-        cmsCache::getInstance()->clean("users.user.{$id}");
+        $inCache = cmsCache::getInstance();
+        $inCache->clean('users.list');
+        $inCache->clean('users.ups');
+        $inCache->clean('users.user.'.$id);
 
     }
 
@@ -898,5 +902,55 @@ class modelUsers extends cmsModel{
 //============================================================================//
 //============================================================================//
 
+    public function setUPS($key, $data, $user_id){
+        if(is_array($data)){
+            $data = self::arrayToYaml($data);
+        }
+        $insert = array(
+            'user_id' => $user_id,
+            'skey' => $key,
+            'settings' => $data
+        );
+        $update = array(
+            'settings' => $data
+        );
+
+        $ret = $this->insertOrUpdate('{users}_personal_settings', $insert, $update);
+        cmsCache::getInstance()->clean('users.ups');
+
+        return $ret;
+    }
+
+    public function getUPS($key, $user_id){
+        $this->useCache('users.ups');
+
+        $this->filterEqual('user_id', $user_id)->filterEqual('skey', $key);
+
+        return $this->getItem('{users}_personal_settings', function($item, $model){
+            if(strpos($item['settings'], '---') === 0){
+                $item['settings'] = cmsModel::yamlToArray($item['settings']);
+            }
+            return $item['settings'];
+        });
+    }
+
+    public function deleteUPS($key, $user_id){
+        if($user_id && $key){
+            $this->filterEqual('user_id', $user_id)->filterEqual('skey', $key);
+        }elseif($user_id){
+            $this->filterEqual('user_id', $user_id);
+        }elseif($key){
+            $this->filterEqual('skey', $key);
+        }else{
+            return false;
+        }
+        $ret = $this->deleteFiltered('{users}_personal_settings');
+        cmsCache::getInstance()->clean('users.ups');
+
+        return $ret;
+    }
+
+//============================================================================//
+//============================================================================//
 
 }
